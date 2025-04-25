@@ -1,50 +1,92 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MovieCard from "../components/MovieCard";
+import { getPopularMovies, searchMovies } from "../services/api";
 
 function Home() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [movies, setMovies] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const movies = [
-    { id: 1, title: "Pk", release_date: "02/02/2016" },
-    { id: 2, title: "Inception", release_date: "07/16/2010" },
-    { id: 3, title: "The Dark Knight", release_date: "07/18/2008" },
-    { id: 4, title: "Interstellar", release_date: "11/07/2014" },
-    { id: 5, title: "3 Idiots", release_date: "12/25/2009" },
-    { id: 6, title: "Parasite", release_date: "05/30/2019" },
-    { id: 7, title: "Avengers: Endgame", release_date: "04/26/2019" },
-    { id: 8, title: "Joker", release_date: "10/04/2019" },
-    { id: 9, title: "The Shawshank Redemption", release_date: "09/23/1994" },
-    { id: 10, title: "Forrest Gump", release_date: "07/06/1994" },
-    { id: 11, title: "The Ma  trix", release_date: "03/31/1999" },
-  ];
+  useEffect(() => {
+    const loadPopularMovies = async () => {
+      try {
+        const popularMovies = await getPopularMovies();
+        setMovies(popularMovies);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load movies. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPopularMovies();
+  }, []);
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    alert(searchQuery);
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (searchQuery.trim() === "") {
+        const popularMovies = await getPopularMovies();
+        setMovies(popularMovies);
+      } else {
+        const results = await searchMovies(searchQuery);
+        setMovies(results);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong while fetching movies.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="home">
-      <form onSubmit={handleSearch} className="search-form">
+    <div className="p-6 bg-gray-900 min-h-screen text-white">
+      {/* Search Form */}
+      <form
+        onSubmit={handleSearch}
+        className="flex flex-col sm:flex-row gap-4 mb-8 justify-center items-center"
+      >
         <input
           type="text"
-          placeholder="Search for movies......"
-          className="search-input"
+          placeholder="Search for movies..."
+          className="bg-white text-black px-4 py-2 rounded-md w-full sm:w-80 focus:outline-none focus:ring-2 focus:ring-yellow-400"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        ></input>
-        <button type="submit" className="search-button">
+          onChange={(e) => setSearchQuery(e.target.value.toLowerCase())}
+        />
+        <button
+          type="submit"
+          className="bg-yellow-400 text-black px-6 py-2 rounded-md hover:bg-yellow-500 transition-colors duration-300"
+        >
           Search
         </button>
       </form>
-      <div className="movies-grid">
-        {movies.map(
-          (movie) =>
-            movie.title.toLowerCase().startsWith(searchQuery) && (
-              <MovieCard movie={movie} key={movie.id} />
-            )
-        )}
-      </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-yellow-400 border-opacity-50"></div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="text-center text-red-500 mb-6 text-lg">{error}</div>
+      )}
+
+      {/* Movie Grid */}
+      {!loading && !error && (
+        <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {movies.map((movie) => (
+            <MovieCard movie={movie} key={movie.id} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
